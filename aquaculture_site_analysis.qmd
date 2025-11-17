@@ -1,0 +1,121 @@
+---
+title: "Aquaculture Site Suitability Analysis"
+author: Ava Robillard
+date: 11/16/25
+format: html
+execute:
+  message: false
+---
+Marine aquaculture plays a key role in the global food supply, but requires suitable space for the needs of marine species. 
+
+**Objective:** Determine which Exclusive Economic Zones (EEZ) on the West Coast of the US are best suited to developing marine aquaculture based upon Sea Surface Temperature (SST) and depth values for any species. 
+
+## Load packages
+
+```{r}
+#| warning: false
+library(tidyverse)
+library(sf)
+library(terra)
+```
+
+## 1. Prepare data
+A) Shapefile for West Coast EEZ
+```{r}
+eez <- sf::st_read(here::here("data", "wc_regions_clean.shp"))
+```
+B) Bathymetry raster
+```{r}
+depth <- terra::rast(here::here("data", "depth.tif"))
+```
+
+C) Sea Surface Temperature (SST) rasters
+```{r}
+# Read in each year 
+sst_2008 <- terra::rast(here::here("data", "average_annual_sst_2008.tif"))
+sst_2009 <- terra::rast(here::here("data", "average_annual_sst_2009.tif"))
+sst_2010 <- terra::rast(here::here("data", "average_annual_sst_2010.tif"))
+sst_2011 <- terra::rast(here::here("data", "average_annual_sst_2011.tif"))
+sst_2012 <- terra::rast(here::here("data", "average_annual_sst_2012.tif"))
+
+# Ensure same resolution, extent and crs!! how to make this into a function to check for all & change?
+# Extent
+if((ext(sst_2008) == ext(sst_2009)) &
+   (ext(sst_2009) == ext(sst_2010)) &
+   (ext(sst_2010) == ext(sst_2011)) &
+   (ext(sst_2011) == ext(sst_2012))){
+  print("Extents match!")
+}else{
+    warning("Extents do not match!")
+}
+
+# Resolution
+if((all(res(sst_2008) == res(sst_2012))) &
+   ((all(res(sst_2009) == res(sst_2010))) &
+    (all(res(sst_2010) == res(sst_2011))) &
+    (all(res(sst_2011) == res(sst_2012))))){
+  print("Resolutions match!")
+}else{
+    warning("Resolutions do not match!")
+}
+
+# CRS
+if((crs(sst_2008) == crs(sst_2009)) &
+   (crs(sst_2009) == crs(sst_2010)) &
+   (crs(sst_2010) == crs(sst_2011)) &
+   (crs(sst_2011) == crs(sst_2012))){
+  print("All CRS match!")
+}else{
+    warning("CRS do not match!")
+}
+
+# 9122
+# Stack rasters
+sst <- c(sst_2008, sst_2009, sst_2010, sst_2011, sst_2012)
+```
+
+## 2. Process data
+Process the SST and depth data so that they can be combined.
+
+```{r}
+# Create raster of average SST 
+
+# Convert average from Kelvin to Celsius
+
+# Crop depth raster to extent of SST raster
+
+# Check that depth and SST raster match in res, ext, and crs
+
+# Resample depth data to match resolution of SST data
+
+# Stack rasters(?)
+```
+
+## 3. Find suitable locations
+```{r}
+# Reclassify SST raster suitable and unsuitable locations
+
+# Reclassify depth raster into suitable and unsuitable locations
+
+# Find locations suitable in SST and depth rasters
+```
+
+## 4. Determine the most suitable EEZ
+```{r}
+# Rasterize EEZ data
+
+# Select suitable cells within EEZ
+
+# Find area of grid cells
+
+# Find total suitable area within each EEZ 
+```
+
+## 5. Create map of EEZ regions colored by amount of suitable area
+```{r}
+
+```
+
+### Build function
+- Arguments: min sea temp, max sea temp, min depth, max depth, species name
+- Outputs: map!
