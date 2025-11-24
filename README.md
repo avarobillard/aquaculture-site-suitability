@@ -12,20 +12,23 @@ The **aquaculture_site_analysis.qmd** file contains the main analysis and visual
 
 The **data** folder contains the Sea Surface Temperature (SST), Bathymetry (depth), and EEZ boundary data imported for the analysis.
 
-``` bash
+```
 aquaculture-site-suitability
-└─── README.md
-└─── aquaculture-site-suitability.Rproj
-└─── aquaculture-site-analysis.qmd 
+├── README.md
+├── aquaculture-site-suitability.Rproj
+├── aquaculture_site_analysis.qmd
 |   .gitignore
-    └───data
-        └─── wc_regions_clean.shp
-        └─── depth.tif
-        └─── average_annual_sst_2008.tif
-        └─── average_annual_sst_2009.tif
-        └─── average_annual_sst_2010.tif
-        └─── average_annual_sst_2011.tif
-        └─── average_annual_sst_2012.tif
+    └── data
+        ├── average_annual_sst_2008.tif
+        ├── average_annual_sst_2009.tif
+        ├── average_annual_sst_2010.tif
+        ├── average_annual_sst_2011.tif
+        ├── average_annual_sst_2012.tif
+        ├── depth.tif
+        ├── wc_regions_clean.dbf
+        ├── wc_regions_clean.prj
+        ├── wc_regions_clean.shp
+        └── wc_regions_clean.shx
 ```
 
 ## Data
