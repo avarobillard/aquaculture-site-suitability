@@ -12,7 +12,7 @@ The **aquaculture_site_analysis.qmd** file contains the main analysis and visual
 
 The **data** folder contains the Sea Surface Temperature (SST), Bathymetry (depth), and EEZ boundary data imported for the analysis.
 
-```
+```         
 aquaculture-site-suitability
 ├── README.md
 ├── aquaculture-site-suitability.Rproj
@@ -25,10 +25,7 @@ aquaculture-site-suitability
         ├── average_annual_sst_2011.tif
         ├── average_annual_sst_2012.tif
         ├── depth.tif
-        ├── wc_regions_clean.dbf
-        ├── wc_regions_clean.prj
-        ├── wc_regions_clean.shp
-        └── wc_regions_clean.shx
+        └── wc_regions_clean.shp
 ```
 
 ## Data
@@ -50,3 +47,7 @@ This assignment was created as a part of EDS 223: Geospatial Analysis & Remote S
 [General Bathymetric Chart of the Oceans (GEBCO)](https://www.gebco.net/data-products/gridded-bathymetry-data#area). Accessed Nov 16, 2025
 
 [Marineregions.org](https://www.marineregions.org/eez.php). Accessed Nov 16, 2025
+
+**Marine Species Suitability Requirements**
+
+Palomares, M. L. D., & Pauly, D. (Editors). (2025). SeaLifeBase (Version 04/2025) [World Wide Web electronic publication]. www.sealifebase.org. Accessed Nov 28, 2025

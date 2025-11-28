@@ -1,20 +1,20 @@
 ---
 title: "Aquaculture Site Suitability Analysis"
 author: Ava Robillard
-date: 11/16/25
+date: 11/28/25
 format: html
 execute:
   message: false
 ---
-Marine aquaculture plays a key role in the global food supply, but requires suitable space for the needs of marine species. 
+Marine aquaculture has the potential to play a key role in the global food supply, but requires enough suitable space based on the needs of the marine species. 
 
-**Objective:** Determine which Exclusive Economic Zones (EEZ) on the West Coast of the US are best suited to developing marine aquaculture based upon Sea Surface Temperature (SST) and depth values for any species. 
+**Objective:** Determine which Exclusive Economic Zones (EEZ) on the West Coast of the US are best suited to developing marine aquaculture based upon a range of optimal Sea Surface Temperature (SST) and depth values for any species. 
 
 ## Load packages
-
 ```{r}
 #| warning: false
 library(tidyverse)
+library(testthat)
 library(sf)
 library(terra)
 library(kableExtra)
@@ -23,63 +23,37 @@ library(tmap)
 ```
 
 ## 1. Prepare data
-A) Shapefile for West Coast EEZ
+**A) Shapefile for West Coast EEZ**
 ```{r}
-eez <- sf::st_read(here::here("data", "wc_regions_clean.shp"))
+# Load data from shapefile
+eez <- sf::st_read(here::here("data", "wc_regions_clean.shp"), quiet = TRUE)
 ```
-B) Bathymetry raster
+
+**B) Bathymetry raster**
 ```{r}
+# Load data from tif file 
 depth <- terra::rast(here::here("data", "depth.tif"))
 ```
 
-C) Sea Surface Temperature (SST) rasters
+**C) Sea Surface Temperature (SST) rasters**
+- To characterize the average sea temperature within the region, we need to create a raster stack of the annual sea surface temperature from the years 2008 to 2012. 
 ```{r}
-# Read in each year 
+# Load data from tif file for each year
 sst_2008 <- terra::rast(here::here("data", "average_annual_sst_2008.tif"))
 sst_2009 <- terra::rast(here::here("data", "average_annual_sst_2009.tif"))
 sst_2010 <- terra::rast(here::here("data", "average_annual_sst_2010.tif"))
 sst_2011 <- terra::rast(here::here("data", "average_annual_sst_2011.tif"))
 sst_2012 <- terra::rast(here::here("data", "average_annual_sst_2012.tif"))
 
-# # Ensure same resolution, extent and crs!! how to make this into a function to check for all & change?
-# # Extent
-# if((ext(sst_2008) == ext(sst_2009)) &
-#    (ext(sst_2009) == ext(sst_2010)) &
-#    (ext(sst_2010) == ext(sst_2011)) &
-#    (ext(sst_2011) == ext(sst_2012))){
-#   print("Extents match!")
-# }else{
-#     warning("Extents do not match!")
-# }
-# 
-# # Resolution
-# if((all(res(sst_2008) == res(sst_2012))) &
-#    ((all(res(sst_2009) == res(sst_2010))) &
-#     (all(res(sst_2010) == res(sst_2011))) &
-#     (all(res(sst_2011) == res(sst_2012))))){
-#   print("Resolutions match!")
-# }else{
-#     warning("Resolutions do not match!")
-# }
-# 
-# # CRS
-# if((crs(sst_2008) == crs(sst_2009)) &
-#    (crs(sst_2009) == crs(sst_2010)) &
-#    (crs(sst_2010) == crs(sst_2011)) &
-#    (crs(sst_2011) == crs(sst_2012))){
-#   print("All CRS match!")
-# }else{
-#     warning("CRS do not match!")
-# }
+# Ensure same resolution, extent and crs by checking if rasters can stack
+expect_no_error(c(sst_2008, sst_2009, sst_2010, sst_2011, sst_2012))
 
-# 9122
-# Stack rasters
+# Create new raster from stack
 sst <- c(sst_2008, sst_2009, sst_2010, sst_2011, sst_2012)
 ```
 
 ## 2. Process data
-Process the SST and depth data so that they can be combined.
-
+Once the data is prepared, we need the mean SST over the years within the raster stack in degrees Celsius. The SST and depth rasters must match in CRS, extent, and resolution to be later combined for our suitability analysis.
 ```{r}
 # Create raster of average SST- apply mean function to the stacked raster
 mean_sst <- app(sst, fun = mean)
@@ -88,9 +62,8 @@ mean_sst <- app(sst, fun = mean)
 mean_sst <- mean_sst - 273.15
 ```
 
-
 ```{r}
-# Check that depth and SST raster match in res, ext, and crs
+# Check that depth and SST raster match in resolution, extent, and CRS
 # CRS
 if((crs(mean_sst) == crs(depth))){
   print("Coordinate reference systems match")
@@ -116,38 +89,43 @@ if(all(res(mean_sst) == res(depth))){
 }
 
 ```
+The SST raster and depth raster are now able to be combined.
 
 ## 3. Find suitable locations
+To find suitable locations for marine aquaculture, we need to find locations that are suitable in both SST and depth. We will do this by reclassifying each raster based upon the optimal values for the species of interest and creating an overall suitability raster that reflects where both SST and depth conditions are satisfied. 
 ```{r}
-# Reclassify SST raster suitable and unsuitable locations
-# create sst reclassification matrix
+# Reclassify SST raster to suitable and unsuitable locations
+# Create SST reclassification matrix
 sst_rcl <- matrix(c(-Inf, 11, 0,
                     11, 30, 1,
                     30, Inf, 0), 
                   ncol = 3, byrow = TRUE)
 
-# use reclassification matrix to reclassify elevation raster
+# Use reclassification matrix to reclassify mean SST raster
 rcl_mean_sst <- classify(mean_sst, rcl = sst_rcl)
 
 # Reclassify depth raster into suitable and unsuitable locations
-# create depth reclassification matrix
+# Create depth reclassification matrix
 depth_rcl <- matrix(c(-Inf, -70, 0,
                     -70, 0, 1,
                      0, Inf, 0),
                   ncol = 3, byrow = TRUE)
 
-# use reclassification matrix to reclassify elevation raster
+# Use reclassification matrix to reclassify depth raster
 rcl_depth <- classify(depth, rcl = depth_rcl)
 
-# Confirm overall match and stack SST and depth rasters
+# Ensure same resolution, extent and crs by checking if rasters can stack
+expect_no_error(c(rcl_mean_sst, rcl_depth))
+
+# Stack SST and depth rasters
 reclassified_sstdepth <- c(rcl_mean_sst, rcl_depth)
 
-# Find locations suitable in SST and depth rasters
+# Function to find locations suitable in both SST and depth rasters
 suitability_fun <- function(sst, depth){
   sst*depth
 }
 
-# apply suitability function to reclassified mean SST and reclassified depth rasters
+# Apply suitability function to reclassified mean SST and reclassified depth rasters
 suitability <- lapp(reclassified_sstdepth[[c(1, 2)]], fun = suitability_fun)
 
 # Rename layer for clarity
@@ -155,18 +133,18 @@ names(suitability) <- "Suitability"
 ```
 
 ## 4. Determine the most suitable EEZ
+Using the final suitability raster, we want to calculate the total suitable area within each EEZ to rank zones by priority. 
 ```{r}
-# Rasterize EEZ data
+# Rasterize EEZ data and fill cells with EEZ region ID
 eez_rast <- terra::rasterize(eez, suitability, field = "rgn_id")
 
-# Select suitable cells within EEZ
-# create raster mask of the same resolution and extent
+# Create raster mask of the same resolution and extent as suitability 
 rmask <- suitability
 
-# set all cells with suitability score of 0 to NA
+# Set all cells with suitability score of 0 to NA
 rmask[rmask == 0] <- NA
  
-# subset EEZ raster based on mask
+# Subset EEZ raster based on mask
 masked_eez <- mask(eez_rast, rmask)
 
 # Count number of suitable cells per EEZ
@@ -174,68 +152,76 @@ cell_count <- zonal(suitability, masked_eez, fun = "sum") %>%
   as.data.frame() %>% 
   rename(suitable_cells = Suitability)
 
-# Check output in table
+# Display output in table
 cell_count_table <- cell_count %>% 
   kable(col.names = c("Economic Zone", "Suitable cell count")) %>% 
   kable_styling(bootstrap_options = "striped")
 
 cell_count_table 
-
-# Find suitable area per eez
+```
+```{r}
+# Find suitable area per EEZ
 suitability_km <- cellSize(suitability, unit = "km")
 
 # Find total suitable area within each EEZ 
 cell_area <- zonal(suitability_km, masked_eez, fun = "sum") %>%
   as.data.frame() %>% 
-  rename(suitable_area = area)
+  rename(suitable_area = area) 
 
-# Check output in table
+# Display output in table
 cell_area_table <- cell_area %>% 
-  kable(col.names = c("Economic Zone", "Suitable area (km)")) %>% 
+  kable(col.names = c("Economic Zone", "Suitable area (km²)")) %>% 
   kable_styling(bootstrap_options = "striped")
 
 cell_area_table 
 
-# Join to eez df on rgn_id!
+# Join suitable cell count and area data frames to EEZ for plotting
 eez_suitability <- eez %>% 
   left_join(cell_count, by = "rgn_id") %>% 
   left_join(cell_area, by = "rgn_id") %>% 
   clean_names()
 ```
 
-## 5. Create map of EEZ regions colored by amount of suitable area
+## 5. Create suitable area map 
+Using the suitable area output, we want to create a map of West Coast EEZs colored by the amount of suitable area for the specified marine species. 
 ```{r}
-# Map suitable area
-tm_shape(eez_suitability) +
-  tm_polygons("suitable_area",
-              palette = "Blues",
-              title = "Suitable area (km²)")
+#| message: false
+  # Map suitable area
+  tm_shape(eez_suitability) +
+    tm_basemap("OpenStreetMap")+
+    tm_polygons(fill = "suitable_area",
+                palette = "PuRd",
+                title = "Suitable area (km²)") +
+    tm_graticules(alpha = 0.2) +
+    tm_compass(size = 1.2, position = c(0, 0.2)) +
+    tm_title("Suitable Area of EEZ Regions\n for Oyster") +
+    tm_legend(text.size = 0.6,
+              title.size = 0.8)
 ```
 
-### Build function
-- Arguments: min sea temp, max sea temp, min depth, max depth, species name
-- Outputs: map!
+## 6. Build function
+To allow this workflow to be applied to any species of interest, a function was created to create the same map using user-specified inputs of minimum and maximum SST, minimum and maximum depth, and species name. 
 
 ```{r}
 suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name){
-  # Reclassify SST raster suitable and unsuitable locations
-  # create sst reclassification matrix
+  # Reclassify SST raster to suitable and unsuitable locations
+  # Create SST reclassification matrix
   sst_rcl <- matrix(c(-Inf, min_sst, 0,
                       min_sst, max_sst, 1,
                       max_sst, Inf, 0), 
                     ncol = 3, byrow = TRUE)
 
-  # use reclassification matrix to reclassify elevation raster
+  # Use reclassification matrix to reclassify SST raster
   rcl_mean_sst <- classify(mean_sst, rcl = sst_rcl)
 
   # Reclassify depth raster into suitable and unsuitable locations
-  # create depth reclassification matrix
+  # Create depth reclassification matrix
   depth_rcl <- matrix(c(-Inf, min_depth, 0,
                       min_depth, max_depth, 1,
                       max_depth, Inf, 0),
                    ncol = 3, byrow = TRUE)
   
-  # use reclassification matrix to reclassify elevation raster
+  # Use reclassification matrix to reclassify depth raster
   rcl_depth <- classify(depth, rcl = depth_rcl)
 
   # Confirm overall match and stack SST and depth rasters
@@ -246,7 +232,7 @@ suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name
     sst*depth
   }
 
-  # apply suitability function to reclassified mean SST and reclassified   depth rasters
+  # Apply suitability function to reclassified mean SST and reclassified depth rasters
   suitability <- lapp(reclassified_sstdepth[[c(1, 2)]], fun = suitability_fun)
 
   # Rename layer for clarity
@@ -255,14 +241,13 @@ suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name
   # Rasterize EEZ data
   eez_rast <- terra::rasterize(eez, suitability, field = "rgn_id")
   
-  # Select suitable cells within EEZ
-  # create raster mask of the same resolution and extent
+  # Create raster mask of the same resolution and extent
   rmask <- suitability
   
-  # set all cells with suitability score of 0 to NA
+  # Set all cells with suitability score of 0 to NA
   rmask[rmask == 0] <- NA
    
-  # subset EEZ raster based on mask
+  # Subset EEZ raster based on mask
   masked_eez <- mask(eez_rast, rmask)
   
   # Count number of suitable cells per EEZ
@@ -270,7 +255,7 @@ suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name
     as.data.frame() %>% 
     rename(suitable_cells = Suitability)
   
-  # Find suitable area per eez
+  # Find suitable area per EEZ
   suitability_km <- cellSize(suitability, unit = "km")
   
   # Find total suitable area within each EEZ 
@@ -278,7 +263,7 @@ suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name
     as.data.frame() %>% 
     rename(suitable_area = area)
   
-  # Join to eez df on rgn_id!
+  # Join suitable cell count and area data frames to EEZ for plotting
   eez_suitability <- eez %>% 
     left_join(cell_count, by = "rgn_id") %>% 
     left_join(cell_area, by = "rgn_id") %>% 
@@ -286,16 +271,29 @@ suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name
   
   # Map suitable area
   tm_shape(eez_suitability) +
-    tm_polygons("suitable_area",
-                palette = "Blues",
+    tm_basemap("OpenStreetMap")+
+    tm_polygons(fill = "suitable_area",
+                palette = "PuRd",
                 title = "Suitable area (km²)") +
-    tm_title(paste(species_name, "EEZ site suitability"))
+    tm_graticules(alpha = 0.2) +
+    tm_compass(size = 1.2, position = c(0, 0.2)) +
+    tm_title(paste("Suitable Area of EEZ Regions\n for", species_name)) +
+    tm_legend(text.size = 0.6,
+              title.size = 0.8)
 }
-
 ```
 
 ```{r}
-# Call function 
-suitability_map(11, 30, -70, 0, "Oyster")
+#| message: false
+# Call function for species of choice
+suitability_map(10, 18, -25, -15, "Rainbow Trout")
 ```
+Based upon these maps, we can determine which Exclusive Economic Zones might be best suited for developing marine aquaculture for a species of interest.
 
+### References
+
+[NOAA's 5km Daily Global Satellite Sea Surface Temperature Anomaly v3.1](https://coralreefwatch.noaa.gov/product/5km/index_5km_ssta.php). Accessed Nov 16, 2025
+
+[General Bathymetric Chart of the Oceans (GEBCO)](https://www.gebco.net/data-products/gridded-bathymetry-data#area). Accessed Nov 16, 2025
+
+[Marineregions.org](https://www.marineregions.org/eez.php). Accessed Nov 16, 2025
