@@ -2,10 +2,14 @@
 title: "Aquaculture Site Suitability Analysis"
 author: Ava Robillard
 date: 11/28/25
-format: html
+format: pdf
 execute:
   message: false
 ---
+![README1](images/README1.png)
+![README1](images/README2.png)
+
+
 Marine aquaculture has the potential to play a key role in the global food supply, but requires enough suitable space based on the needs of the marine species. 
 
 **Objective:** Determine which Exclusive Economic Zones (EEZ) on the West Coast of the US are best suited to developing marine aquaculture based upon a range of optimal Sea Surface Temperature (SST) and depth values for any species. 
@@ -184,7 +188,7 @@ eez_suitability <- eez %>%
 
 ## 5. Create suitable area map 
 Using the suitable area output, we want to create a map of West Coast EEZs colored by the amount of suitable area for the specified marine species. 
-```{r}
+```{r, fig.width=8, fig.height=6}
 #| message: false
   # Map suitable area
   tm_shape(eez_suitability) +
@@ -193,10 +197,10 @@ Using the suitable area output, we want to create a map of West Coast EEZs color
                 palette = "PuRd",
                 title = "Suitable area (km²)") +
     tm_graticules(alpha = 0.2) +
-    tm_compass(size = 1.2, position = c(0, 0.2)) +
-    tm_title("Suitable Area of EEZ Regions\n for Oyster") +
-    tm_legend(text.size = 0.6,
-              title.size = 0.8)
+    tm_compass(size = 2, position = c(0, 0.15)) +
+    tm_title("Suitable Area\nof EEZ Regions\nfor Oyster") +
+    tm_legend(text.size = 0.8,
+              title.size = 1) 
 ```
 
 ## 6. Build function
@@ -276,14 +280,14 @@ suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name
                 palette = "PuRd",
                 title = "Suitable area (km²)") +
     tm_graticules(alpha = 0.2) +
-    tm_compass(size = 1.2, position = c(0, 0.2)) +
-    tm_title(paste("Suitable Area of EEZ Regions\n for", species_name)) +
-    tm_legend(text.size = 0.6,
-              title.size = 0.8)
+    tm_compass(size = 2, position = c(0, 0.15)) +
+    tm_title(paste("Suitable Area\nof EEZ Regions\nfor", species_name)) +
+    tm_legend(text.size = 0.8,
+              title.size = 1) 
 }
 ```
 
-```{r}
+```{r, fig.width=8, fig.height=6}
 #| message: false
 # Call function for species of choice
 suitability_map(10, 18, -25, -15, "Rainbow Trout")
