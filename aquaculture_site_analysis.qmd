@@ -1,7 +1,7 @@
 ---
 title: "Aquaculture Site Suitability Analysis"
 author: Ava Robillard
-date: 11/28/25
+date: 12/08/25
 format: pdf
 execute:
   message: false
@@ -139,52 +139,42 @@ names(suitability) <- "Suitability"
 ## 4. Determine the most suitable EEZ
 Using the final suitability raster, we want to calculate the total suitable area within each EEZ to rank zones by priority. 
 ```{r}
+# Transform EEZ data to correct CRS
+eez <- st_transform(eez, crs(suitability))
+
 # Rasterize EEZ data and fill cells with EEZ region ID
 eez_rast <- terra::rasterize(eez, suitability, field = "rgn_id")
 
 # Create raster mask of the same resolution and extent as suitability 
 rmask <- suitability
 
+# Subset EEZ based on mask
+masked_suitability <- mask(rmask, eez)
+
 # Set all cells with suitability score of 0 to NA
-rmask[rmask == 0] <- NA
- 
-# Subset EEZ raster based on mask
-masked_eez <- mask(eez_rast, rmask)
+masked_suitability[masked_suitability == 0] <- NA
 
-# Count number of suitable cells per EEZ
-cell_count <- zonal(suitability, masked_eez, fun = "sum") %>% 
-  as.data.frame() %>% 
-  rename(suitable_cells = Suitability)
-
-# Display output in table
-cell_count_table <- cell_count %>% 
-  kable(col.names = c("Economic Zone", "Suitable cell count")) %>% 
-  kable_styling(bootstrap_options = "striped")
-
-cell_count_table 
-```
-```{r}
-# Find suitable area per EEZ
-suitability_km <- cellSize(suitability, unit = "km")
+# Find suitable area 
+suitability_km <- cellSize(masked_suitability, unit = "km", mask = TRUE)
 
 # Find total suitable area within each EEZ 
-cell_area <- zonal(suitability_km, masked_eez, fun = "sum") %>%
+cell_area <- zonal(suitability_km, eez_rast, fun = "sum", na.rm = TRUE) %>%
   as.data.frame() %>% 
-  rename(suitable_area = area) 
+  rename(suitable_area = area)
 
 # Display output in table
 cell_area_table <- cell_area %>% 
   kable(col.names = c("Economic Zone", "Suitable area (km²)")) %>% 
   kable_styling(bootstrap_options = "striped")
 
-cell_area_table 
-
-# Join suitable cell count and area data frames to EEZ for plotting
+# Join suitable cell area data frame to EEZ for plotting
 eez_suitability <- eez %>% 
-  left_join(cell_count, by = "rgn_id") %>% 
   left_join(cell_area, by = "rgn_id") %>% 
   clean_names()
+
+cell_area_table
 ```
+
 
 ## 5. Create suitable area map 
 Using the suitable area output, we want to create a map of West Coast EEZs colored by the amount of suitable area for the specified marine species. 
@@ -241,35 +231,32 @@ suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name
 
   # Rename layer for clarity
   names(suitability) <- "Suitability"
-    
-  # Rasterize EEZ data
+  
+  # Transform EEZ data to correct CRS
+  eez <- st_transform(eez, crs(suitability))
+  
+  # Rasterize EEZ data and fill cells with EEZ region ID
   eez_rast <- terra::rasterize(eez, suitability, field = "rgn_id")
   
-  # Create raster mask of the same resolution and extent
+  # Create raster mask of the same resolution and extent as suitability 
   rmask <- suitability
   
+  # Subset EEZ based on mask
+  masked_suitability <- mask(rmask, eez)
+  
   # Set all cells with suitability score of 0 to NA
-  rmask[rmask == 0] <- NA
-   
-  # Subset EEZ raster based on mask
-  masked_eez <- mask(eez_rast, rmask)
+  masked_suitability[masked_suitability == 0] <- NA
   
-  # Count number of suitable cells per EEZ
-  cell_count <- zonal(suitability, masked_eez, fun = "sum") %>% 
-    as.data.frame() %>% 
-    rename(suitable_cells = Suitability)
-  
-  # Find suitable area per EEZ
-  suitability_km <- cellSize(suitability, unit = "km")
+  # Find suitable area 
+  suitability_km <- cellSize(masked_suitability, unit = "km", mask = TRUE)
   
   # Find total suitable area within each EEZ 
-  cell_area <- zonal(suitability_km, masked_eez, fun = "sum") %>%
+  cell_area <- zonal(suitability_km, eez_rast, fun = "sum", na.rm = TRUE) %>%
     as.data.frame() %>% 
     rename(suitable_area = area)
   
-  # Join suitable cell count and area data frames to EEZ for plotting
+  # Join suitable cell area data frame to EEZ for plotting
   eez_suitability <- eez %>% 
-    left_join(cell_count, by = "rgn_id") %>% 
     left_join(cell_area, by = "rgn_id") %>% 
     clean_names()
   
@@ -292,7 +279,9 @@ suitability_map <- function(min_sst, max_sst, min_depth, max_depth, species_name
 # Call function for species of choice
 suitability_map(10, 18, -25, -15, "Rainbow Trout")
 ```
-Based upon these maps, we can determine which Exclusive Economic Zones might be best suited for developing marine aquaculture for a species of interest.
+## Interpretation
+
+Based upon these maps, we can determine which Exclusive Economic Zones might be best suited for developing marine aquaculture for a species of interest. For example, the map we created for Rainbow Trout indicated that the Washington EEZ contains the most suitable area at 700-800 km^2^, followed by the Southern California EEZ with 600-699 km^2^ suitable area. One limitation of this analysis is that it only included two environmental variables, mean sea surface temperature (SST) and depth. Additional environmental factors, such as salinity and food availability, could also influence the amount of suitable habitat. Additionally, the way SST was calculated in this analysis might cause different results, as the SST was averaged over 5 years (2008-2012), but climatic events such as El Niño and La Niña could cause significant temperature changes during that time. For real-world applications, it might be beneficial to incorporate limitations on which species are best for aquaculture, such as their conservation status and whether the species is native to the West Coast, to ensure that aquaculture is developed responsibly. 
 
 ### References
 
